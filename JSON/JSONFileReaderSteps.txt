@@ -1,0 +1,49 @@
+Reading & Setup
+
+Read the entire file into a string
+Create an index variable i = 0 to track your position in the string
+Create a depth counter starting at 0
+
+Main Parsing Loop
+
+Loop through each character using i
+Skip whitespace characters (space, \n, \t, \r)
+Use a bool inString flag to track whether you're currently inside a string — while inString is true, ignore all special characters except " and \
+
+Handling Strings
+
+When you hit a ", toggle inString
+Watch for the escape character \ — if you see it, skip the next character entirely with i++ so a \" inside a string doesn't accidentally close it
+
+Tracking Depth
+
+When you hit { or [ and you're not in a string, increment depth
+When you hit } or ] and you're not in a string, decrement depth
+A complete top-level object is found when depth returns to 0
+
+Extracting Keys
+
+When you find a " outside of a string, start collecting characters into a temp string until the closing "
+After the closing ", skip whitespace and check if the next character is : — if so, what you collected is a key
+
+Extracting Values
+
+After the :, skip whitespace and check the next character to determine the value type:
+
+" → read until closing " for a string value
+{ → recursively parse a nested object
+[ → recursively parse an array
+t or f → read 4-5 characters for true/false
+n → read 4 characters for null
+A digit or - → keep reading until you hit a non-numeric character for a number
+
+
+
+Tracking Object Boundaries
+
+When depth goes from 0 to 1 on a {, you've entered a new top-level object — record the start index i
+When depth returns to 0 on a }, you've found the end — you can now extract the substring from start to i as one complete object
+
+Commas
+
+Commas , at the same depth level just signal "another key-value pair is coming" — you can mostly skip them and let the next iteration pick up the next key
