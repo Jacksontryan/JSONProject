@@ -16,43 +16,108 @@
 
 using namespace std;
 
+//requires: string name of file path and name of a correctly formatted .json file
+
+//returns: a string value that represents the entire .json file in 1 line with no whitespace or new line characters
+
+//CHECKS:
+//1.if the number of opening brackets matches the number of closing brackets
+//2. if the file is empty
+//3. if the file is not there
+
+//DOES NOT CHECK:
+//1. if the number of { brackets equals the number of } brackets or if the number of [ brackets equals the number of ] brackets
+//2. if there is a syntax error
+//3. if the .json file starts with an opening bracket
+//4. if closing brackets come before opening brackets
+
+//complexity: 0(n) where n is the length of the json file
+
 string readFile(string filename) {
+
+    //file reader
     ifstream file(filename);
+
+    //string line of the deflated .json file
     string line;
-    vector<JSONObject> objects;
+
+    //current character
     char c;
+
+    //balance variable. makes sure the number of opening brackets {, [ equals the number of closing brackets }, ]
     int balance = 0;
+
+    //bool value that checks if we are in a string. while in string, special checks are necessary for special characters
     bool inString = false;
+
+    //for each character in the file
     while (file.get(c)) {
+
+        //if currently in a string
         if (inString) {
+
+            //special check \ character
             if (c == '\\') {
+
+                //get the next character
                 file.get(c);
+
+                //if character is not a whitespace, add it to the line
                 if (c != 'r' && c != 'n' && c != 't' && c != 'f') {
                     line.push_back('\\');
                     line.push_back(c);
                 }
-            }else if (c == '\"') {
+
+            }
+
+            //special check "
+            else if (c == '\"') {
+
+                //add quotation mark to line
                 line.push_back('\"');
+
+                //because you exited quotation mark, inString is set to false
                 inString = false;
-            }else {
+
+            }else {//if not a special character, add it to the end of line
                 line.push_back(c);
             }
-        }else {
+
+        }else {//if not in string
+
+            //special check "
             if (c == '\"') {
+
+                //add quotation mark to line
                 line.push_back('\"');
+
+                //because you have entered quotation marks, set inString to true
                 inString = true;
-            }else if (c == '{' || c == '[') {
+
+            }
+
+            //if entering a bracket, add 1 to balance and add the character to line
+            else if (c == '{' || c == '[') {
                 balance++;
                 line.push_back(c);
-            }else if (c == '}' || c == ']') {
+            }
+
+            //if exiting bracket, subtract 1 from balance and add the character to line
+            else if (c == '}' || c == ']') {
                 line.push_back(c);
                 balance--;
-            }else if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+            }
+
+            //if character is not a whitespace or new line character, add it to the back
+            else if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
                 line.push_back(c);
             }
+
         }
+
     }
 
+    //if the line is empty, or balance is off throw error
     try {
         if (line.empty()) {
             throw runtime_error("Empty JSON file!");
@@ -63,69 +128,114 @@ string readFile(string filename) {
         cout << e.what() << endl;
     }
 
+    //return the line
     return line;
 }
 
+//requires: non-empty, balanced deflated json string
+
+//returns: Root JSON Object with all fields complete
 JSONObject objectRoot(string line) {
 
-    //cout << line << endl;
-
+    //the first character is guaranteed to be {
+    //as such, the depth is guaranteed to start at 1 and start indexing at the second character
     int depth = 1;
     int i = 1;
 
+    //current character
     char c;
 
+    //Root object, or the object to be returned
     JSONObject root = JSONObject("Root");
-    JSONObject current;
 
+    //in string check
     bool inString = false;
+
+    //in number check
     bool inNumber = false;
+
+    //Check for expecting key. A key is expected before the : character
     bool expectingKey = true;
 
+    //current string you are dealing with
     string currentString;
+
+    //current key you are dealing with. Key is the name of the object
     string key;
+
+    //current number string to be parsed later
     string currentNumber;
 
+    //stack of opening brackets. When poping brackets, if the popped bracket does not correspond to the current closing bracket, throws an error
     Stack<char> bracketStack;
+
+    //push { onto bracketStack to represent the root
     bracketStack.push('{');
 
-    Stack<JSONObject> stack;
-    stack.push(root);
+    //an object stack. Top object is the parent of whatever you are currently dealing with
+    Stack<JSONObject> objectStack;
 
+    //push root object to the object stack
+    objectStack.push(root);
+
+    //stack of keys, or names of the objects and fields
     Stack<string> keyStack;
-    keyStack.push("root");
 
+    //push root onto the keyStack
+    keyStack.push("Root");
+
+    //stack of lists. I had to create a generic list class that is a total mess if you try to add multiple types of objects, but the functionality is there
     Stack<List> listStack;
+
+    //current list you are dealing with
     List currentList;
 
+
+    //loop through the deflated .json file, starting with the character after the {
     while (i < line.length()) {
 
+        //get the current character
         c = line[i];
 
-        //cout << "i=" << i << " c=" << c << endl;
-
+        //if currently in a string
         if (inString) {
 
+            //if current character is a closing parentheses
             if (c == '\"') {
 
+                //set inString to false
                 inString = false;
 
+                //if currently expecting a key
                 if (expectingKey) {
 
+                    //switch currentString to key
                     key = currentString;
+
+                    //clear current string for future use
                     currentString.clear();
+
+                    //set expectingKey to false
                     expectingKey = false;
 
-                }else if (bracketStack.peek() == '[') {
+                }
+
+                //if not expecting key, but the top of bracketStack is a list
+                else if (bracketStack.peek() == '[') {
+
+                    //add the current string to the top list of listStack
                     listStack.peek().add(listStack.peek().size(),currentString);
+
+                    //clear currentString
                     currentString.clear();
-                    expectingKey = true;
-                }else {
+
+                    //set expecting key to false
+                    expectingKey = false;
+
+                }else {////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                     JSONObjectField field = JSONObjectField(key);
                     field.setValue(currentString);
-                    //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                    stack.peek().addField(field);
-                    //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
+                    objectStack.peek().addField(field);
                     currentString.clear();
                     expectingKey = true;
                 }
@@ -181,13 +291,13 @@ JSONObject objectRoot(string line) {
                             int x = stoi(currentNumber);
                             field.setValue(x);
                             //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                            stack.peek().addField(field);
+                            objectStack.peek().addField(field);
                             //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
                         }else {
                             double x = stof(currentNumber);
                             field.setValue(x);
                             //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                            stack.peek().addField(field);
+                            objectStack.peek().addField(field);
                             //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
                         }
                     }
@@ -224,7 +334,7 @@ JSONObject objectRoot(string line) {
                         bool b = true;
                         field.setValue(b);
                         //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                        stack.peek().addField(field);
+                        objectStack.peek().addField(field);
                         //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
                     }
                     expectingKey = true;
@@ -242,7 +352,7 @@ JSONObject objectRoot(string line) {
                         bool b = false;
                         field.setValue(b);
                         //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                        stack.peek().addField(field);
+                        objectStack.peek().addField(field);
                         //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
                     }
                     expectingKey = true;
@@ -256,14 +366,21 @@ JSONObject objectRoot(string line) {
                     }else {
                         JSONObjectField field = JSONObjectField(key);
                         field.setValue(NULL);
-                        stack.peek().addField(field);
+                        objectStack.peek().addField(field);
                     }
                     expectingKey = true;
                     break;
                 }
                 case '{': {
                     JSONObject newObject = JSONObject();
-                    stack.push(newObject);
+                    if (bracketStack.peek() == '[') {
+                        string name = keyStack.peek();
+                        name+=std::to_string(listStack.peek().size());
+                        newObject.setName(name);
+                    }else {
+                        newObject.setName(key);
+                    }
+                    objectStack.push(newObject);
                     bracketStack.push('{');
                     keyStack.push(key);
                     expectingKey = true;
@@ -284,7 +401,7 @@ JSONObject objectRoot(string line) {
                     }catch (runtime_error& e) {
                         cout << e.what() << endl;
                     }
-                    JSONObject newObject = stack.pop();
+                    JSONObject newObject = objectStack.pop();
                     string objectKey = keyStack.pop();
 
                     //cout << "} hit: objectKey=" << objectKey
@@ -300,12 +417,12 @@ JSONObject objectRoot(string line) {
                     }else {
                         JSONObjectField field = JSONObjectField(objectKey);
                         field.setValue(newObject);
-                        if (stack.size() == 0) {
+                        if (objectStack.size() == 0) {
                             //cout << "EARLY RETURN: stack empty, objectKey=" << objectKey << endl;
                             return newObject;
                         }
                         //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                        stack.peek().addField(field);
+                        objectStack.peek().addField(field);
                         //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
                     }
                     expectingKey = true;
@@ -321,7 +438,7 @@ JSONObject objectRoot(string line) {
                         JSONObjectField field = JSONObjectField(objectKey);
                         field.setValue(l);
                         //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                        stack.peek().addField(field);
+                        objectStack.peek().addField(field);
                         //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
                     }
                     expectingKey = true;
@@ -338,53 +455,79 @@ JSONObject objectRoot(string line) {
         }
         i++;
     }
-    return stack.pop();
+    return objectStack.pop();
 }
 
-vector<JSONObject> vectorRoot(string line){
-    return vector<JSONObject>();
+ArrayList<JSONObject> vectorRoot(string line){
+    return ArrayList<JSONObject>();
 }
-
-vector<JSONObject> instantiateFile(const string& filename) {
-
-    string line = readFile(filename);
-
-    //at this point, line is a single string without any whitespaces(' ', '\n', '\t', '\r')
-
-    vector<JSONObject> objects;
-
-    try {
-        if (line[0] == '{') {
-            JSONObject root = objectRoot(line);
-            objects.push_back(root);
-            return objects;
-        }else if (line[0] == '[') {
-            objects = vectorRoot(line);
-        }else {
-            string error = "JSON file must start with [ or { not ";
-            error += line[0];
-            throw runtime_error(error);
-        }
-    }catch (runtime_error& e) {
-        cout << e.what() << endl;
-    }
-
-    return objects;
-
-}
-
 
 int main() {
     string line = readFile("C:/Users/jacks/CLionProjects/videoGame/cmake-build-debug/Resources/sample.json");
     JSONObject object = objectRoot(line);
+
     cout << object.getName() << " " << object.getFields().size() << endl;
     for (int i = 0; i < object.getFields().size(); i++) {
         cout << object.getFields().get(i).getName() << endl;
     }
+
+    cout << endl;
+
     JSONObject inner = object.getFields().get(5).getValue<JSONObject>();
     cout << inner.getName() << " " << inner.getFields().size() << endl;
     for (int i = 0; i < inner.getFields().size(); i++) {
         cout << inner.getFields().get(i).getName() << endl;
     }
+
+    cout << endl;
+
+    List departments = object.getFields().get(6).getValue<List>();
+    cout << object.getFields().get(6).getName() << " " << departments.size() << endl;
+    for (int i = 0; i < departments.size(); i++) {
+        cout << departments.get<string>(i) << endl;
+    }
+
+    cout << endl;
+
+    List employees = object.getFields().get(7).getValue<List>();
+    cout << employees.size() << endl;
+
+    for (int i = 0; i < employees.size(); i++) {
+
+        JSONObject o = employees.get<JSONObject>(i);
+        cout << o.getName() <<  endl;
+
+        int id = o.getField("id").getValue<int>();
+        cout << "id: " << id << endl;
+
+        string name = o.getField("name").getValue<string>();
+        cout << "name: " << name << endl;
+
+        string role = o.getField("role").getValue<string>();
+        cout << "role: " << role << endl;
+
+        int salary = o.getField("salary").getValue<int>();
+        cout << "salary: " << salary << endl;
+
+        bool remote = o.getField("remote").getValue<bool>();
+        cout << "remote: " << remote << endl;
+
+        cout << endl;
+    }
+
+    JSONObject benifits = object.getField("benefits").getValue<JSONObject>();
+    cout << benifits.getName() << endl;
+
+    bool health_insurance = benifits.getField("health_insurance").getValue<bool>();
+    cout << "health_insurance: " << health_insurance << endl;
+    bool dental = benifits.getField("dental").getValue<bool>();
+    cout << "dental: " << dental << endl;
+    string retirement_plan = benifits.getField("retirement_plan").getValue<string>();
+    cout << "retirement_plan: " << retirement_plan << endl;
+    int pto_days = benifits.getField("pto_days").getValue<int>();
+    cout << "pto_days: " << pto_days << endl;
+    int parental_leave_weeks = benifits.getField("parental_leave_weeks").getValue<int>();
+    cout << "parental_leave_weeks: " << parental_leave_weeks << endl;
+
     return 0;
 }
