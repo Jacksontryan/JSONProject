@@ -232,7 +232,9 @@ JSONObject objectRoot(string line) {
                     //set expecting key to false
                     expectingKey = false;
 
-                }else {////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                }else {//if not expecting key and not in a list
+
+                    //create new JSONObjectField
                     JSONObjectField field = JSONObjectField(key);
                     field.setValue(currentString);
                     objectStack.peek().addField(field);
