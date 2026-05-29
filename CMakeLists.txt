@@ -9,6 +9,6 @@ add_executable(JSONProject
         DataStructures/List.h
         DataStructures/Node.h
         DataStructures/Stack.cpp
-        JSON/JSONFileReader.cpp
         JSON/JSONObject.cpp
-        JSON/JSONObjectField.cpp)
+        JSON/JSONObjectField.cpp
+        JSON/JSONFileReader.cpp)

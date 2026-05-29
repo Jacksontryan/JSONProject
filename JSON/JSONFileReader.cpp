@@ -135,6 +135,9 @@ string readFile(string filename) {
 //requires: non-empty, balanced deflated json string
 
 //returns: Root JSON Object with all fields complete
+
+//Complexity: O(n) where n is the length of the line variable
+
 JSONObject objectRoot(string line) {
 
     //the first character is guaranteed to be {
@@ -236,23 +239,46 @@ JSONObject objectRoot(string line) {
 
                     //create new JSONObjectField
                     JSONObjectField field = JSONObjectField(key);
+
+                    //fields value is set to currentString
                     field.setValue(currentString);
+
+                    //add the field to the current object
                     objectStack.peek().addField(field);
+
+                    //clear current string
                     currentString.clear();
+
+                    //reset expecting string
                     expectingKey = true;
                 }
-            }else if (c == '\\' && line[i+1] == '\"') {
+            }
+            //if the next characters are \"
+            else if (c == '\\' && line[i+1] == '\"') {
 
+                //add the character to the current string
                 currentString += '\"';
+
+                //increment to the next character
                 i++;
 
-            }else {
+            }
+            //if current character is not " or \" add character to current string
+            else {
 
                 currentString += c;
 
             }
-        }else if (inNumber) {
+
+        }
+
+        //if inNumber
+        else if (inNumber) {
+
+            //look at current character
             switch (c) {
+
+                //number cases add number
                 case '0':
                 case '1':
                 case '2':
@@ -265,50 +291,103 @@ JSONObject objectRoot(string line) {
                 case '9':
                     currentNumber += c;
                     break;
+
+                //decimal point case
                 case '.':
+
+                    //check for if the number has a decimal point already
                     try {
                         if (currentNumber.find('.') == string::npos) {
                             currentNumber += '.';
-                        }else {
+                        }
+                        //throw runtime error if 2 decimal points
+                        else {
                             throw runtime_error("Number cannot have two decimals");
                         }
                     }catch (runtime_error& e) {
+                        //print error message
                         cout << e.what() << endl;
                     }
                     break;
                 default:
+                    //when you hit a non number character, you are out of the number
                     inNumber = false;
+
+                    //increment back one. I don't know why this is needed, I just know it doesn't work correctly without this line
                     i--;
+
+                    //if the last bracket was an array
                     if (bracketStack.peek() == '[') {
+
+                        //if the current number does not have a decimal point
                         if (currentNumber.find('.') == string::npos) {
+
+                            //convert currentNumber to an int
                             int x = stoi(currentNumber);
+
+                            //add the number to the current list
                             listStack.peek().add(listStack.peek().size(),x);
-                        }else {
-                            double x = stod(currentNumber);
-                            listStack.peek().add(listStack.peek().size(),x);
+
                         }
-                    }else {
-                        JSONObjectField field = JSONObjectField(key);
-                        if (currentNumber.find('.') == string::npos) {
-                            int x = stoi(currentNumber);
-                            field.setValue(x);
-                            //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                            objectStack.peek().addField(field);
-                            //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
-                        }else {
-                            double x = stof(currentNumber);
-                            field.setValue(x);
-                            //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                            objectStack.peek().addField(field);
-                            //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
+                        //if the number has a decimal point
+                        else {
+
+                            //convert currentNumber to double
+                            double x = stod(currentNumber);
+
+                            //add the number to the current list
+                            listStack.peek().add(listStack.peek().size(),x);
                         }
                     }
+
+                    //if top on bracket stack is object
+                    else {
+
+                        //create a json object field with the key
+                        JSONObjectField field = JSONObjectField(key);
+
+                        //if current number does not have a decimal point
+                        if (currentNumber.find('.') == string::npos) {
+
+                            //turn currentNumber to an int
+                            int x = stoi(currentNumber);
+
+                            //set the field value to the number
+                            field.setValue(x);
+
+                            //add field to the top object
+                            objectStack.peek().addField(field);
+                        }
+
+                        //if there is a decimal point
+                        else {
+
+                            //turn currentNumber to a double
+                            double x = stof(currentNumber);
+
+                            //set the field value to the number
+                            field.setValue(x);
+
+                            //add the field to the top object
+                            objectStack.peek().addField(field);
+                        }
+
+                    }
+
+                    //clear current string, number and reset expecting key
                     currentString.clear();
                     currentNumber.clear();
                     expectingKey = true;
+
             }
-        }else {
+        }
+        //if not in number or in string
+        else {
+
+            //look at current character
             switch (c) {
+
+                //number cases, including decimal point and negative sign
                 case '0':
                 case '1':
                 case '2':
@@ -320,82 +399,190 @@ JSONObject objectRoot(string line) {
                 case '8':
                 case '9':
                 case '.':
+                case '-':
+
+                    //add the character to currentNumber
                     currentNumber += c;
+
+                    //inNumber is true
                     inNumber = true;
                     break;
+
+                //if the character is "
                 case '\"':
+
+                    //start collecting string characters
                     inString = true;
                     break;
+
+                //true cases. Includes uppercase and lowercase true
                 case 't':
                 case 'T': {
+
+                    //increment to the end of the word true
                     i+=3;
+
+                    //if the current bracket is an array
                     if (bracketStack.peek() == '[') {
+
+                        //add true to the current list
                         listStack.peek().add(listStack.peek().size(),true);
-                    }else {
+
+                    }
+
+                    //if json object bracket
+                    else {
+
+                        //create a new field using key
                         JSONObjectField field = JSONObjectField(key);
+
+                        //create a true varable and add it to field
                         bool b = true;
                         field.setValue(b);
-                        //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
+
+                        //add the field to the current object
                         objectStack.peek().addField(field);
-                        //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
+
                     }
+
+                    //reset expecting key
                     expectingKey = true;
                     break;
                 }
+
+                //if the current character is false
                 case 'f':
                 case 'F':{
+
+                    //increment to the end of the word false
                     i+=4;
-                    //cout << "false detected at i=" << i << " next chars: "
-         //<< line[i+1] << line[i+2] << line[i+3] << line[i+4] << endl;
+
+                    //if the top bracket is an array
                     if (bracketStack.peek() == '[') {
+
+                        //add false to the current list
                         listStack.peek().add(listStack.peek().size(),false);
-                    }else {
-                        JSONObjectField field = JSONObjectField(key);
-                        bool b = false;
-                        field.setValue(b);
-                        //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                        objectStack.peek().addField(field);
-                        //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
                     }
+
+                    //if top of bracket stack is object bracket
+                    else {
+
+                        //create a new object field with key
+                        JSONObjectField field = JSONObjectField(key);
+
+                        //create a false variable
+                        bool b = false;
+
+                        //set field value to false
+                        field.setValue(b);
+
+                        //add field to current object
+                        objectStack.peek().addField(field);
+
+                    }
+
+                    //reset expecting key
                     expectingKey = true;
                     break;
                 }
+
+                //null check
                 case 'n':
                 case 'N':{
+
+                    //increment to end of word
                     i+=3;
+
+                    //if top bracket is array bracket
                     if (bracketStack.peek() == '[') {
+
+                        //add null to current list
                         listStack.peek().add(listStack.peek().size(),NULL);
-                    }else {
+                    }
+
+                    //if top bracket is object bracket
+                    else {
+
+                        //create new json object field with key
                         JSONObjectField field = JSONObjectField(key);
+
+                        //set field value to null
                         field.setValue(NULL);
+
+                        //add field to current object
                         objectStack.peek().addField(field);
+
                     }
+
+                    //reset expecting key
                     expectingKey = true;
                     break;
                 }
+
+                //if current character is an opened object bracket
                 case '{': {
+
+                    //create new json object
                     JSONObject newObject = JSONObject();
+
+                    //if currently in an array
                     if (bracketStack.peek() == '[') {
+
+                        //get the current name off of key stack
                         string name = keyStack.peek();
+
+                        //add the current length of the top list to name
                         name+=std::to_string(listStack.peek().size());
+
+                        //set name of the object to name
                         newObject.setName(name);
-                    }else {
-                        newObject.setName(key);
                     }
+
+                    //if currently in an object
+                    else {
+
+                        //set name of object to key
+                        newObject.setName(key);
+
+                    }
+
+                    //push the new object onto the stack
                     objectStack.push(newObject);
+
+                    //push an object bracket to the bracket stack
                     bracketStack.push('{');
+
+                    //push key to the key stack
                     keyStack.push(key);
+
+                    //reset expecting key
                     expectingKey = true;
                     break;
                 }
+
+                //if current character is an opening array bracket
                 case '[':
+
+                    //push opening array bracket to bracket stack
                     bracketStack.push('[');
+
+                    //push a new list onto list stack
                     listStack.push(List());
+
+                    //push current key onto key stack
                     keyStack.push(key);
+
+                    //while in an array, you never expect a key
                     expectingKey = false;
                     break;
+
+                //if current character is a closing object bracket
                 case '}': {
+
+                    //pop off the top of bracket stack
                     char b = bracketStack.pop();
+
+                    //check to make sure the popped bracket is an opening object bracket
                     try {
                         if (b!='{') {
                             throw runtime_error("Critical Error. Unable To Continue Parsing");
@@ -403,60 +590,126 @@ JSONObject objectRoot(string line) {
                     }catch (runtime_error& e) {
                         cout << e.what() << endl;
                     }
+
+                    //take the top of object stack and key stack
                     JSONObject newObject = objectStack.pop();
                     string objectKey = keyStack.pop();
 
-                    //cout << "} hit: objectKey=" << objectKey
-         //<< " bracketStack.size()=" << bracketStack.size()
-         //<< " stack.size()=" << stack.size() << endl;
-
+                    //if the current bracket is the last bracket of the bracket stack, return the object. Cannot read in the leftover data after this point
                     if (bracketStack.size() == 0) {
-                        //cout << "Early return triggered at i=" << i << " objectKey=" << objectKey << endl;
                         return newObject;
                     }
+
+                    //if the top of bracket stack is an array bracket
                     if (bracketStack.peek() == '[') {
+
+                        //add the object to the top of list stack
                         listStack.peek().add(listStack.peek().size(),newObject);
-                    }else {
+                    }
+
+                    //if top of bracket stack is an object bracket
+                    else {
+
+                        //create a new object field
                         JSONObjectField field = JSONObjectField(objectKey);
+
+                        //set the value of the field to the object
                         field.setValue(newObject);
+
+                        //if object stack size is 0, reached an early return. Cannot read in the leftover data
                         if (objectStack.size() == 0) {
                             //cout << "EARLY RETURN: stack empty, objectKey=" << objectKey << endl;
                             return newObject;
                         }
-                        //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
+
+                        //add the field to the top of object stack
                         objectStack.peek().addField(field);
-                        //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
                     }
+
+                    //reset expecting key
                     expectingKey = true;
                     break;
                 }
+
+                //if current character is a closing array bracket
                 case ']': {
-                    bracketStack.pop();
-                    List l = listStack.pop();
-                    string objectKey = keyStack.pop();
-                    if (bracketStack.peek() == '[') {
-                        listStack.peek().add(listStack.peek().size(),l);
-                    }else {
-                        JSONObjectField field = JSONObjectField(objectKey);
-                        field.setValue(l);
-                        //cout << "Adding field '" << key << "' to stack.peek() at address " << &stack.peek() << endl;
-                        objectStack.peek().addField(field);
-                        //cout << "stack.peek() now has " << stack.peek().getFields().size() << " fields" << endl;
+
+                    //pop the top of bracket stack and check to make sure that it matches
+                    char b = bracketStack.pop();
+                    try {
+                        if (b!='[') {
+                            throw runtime_error("Critical Error. Expected [");
+                        }
+                    }catch (runtime_error& e) {
+                        cout << e.what() << endl;
                     }
+
+                    //get top list of list stack
+                    List l = listStack.pop();
+
+                    //get top key of key stack
+                    string objectKey = keyStack.pop();
+
+                    //if top of bracket stack is an opening array bracket
+                    if (bracketStack.peek() == '[') {
+
+                        //add the current list to the top list of list stack
+                        listStack.peek().add(listStack.peek().size(),l);
+
+                    }
+
+                    //if the top of bracket stack is an opening object bracket
+                    else {
+
+                        //create new field using object key
+                        JSONObjectField field = JSONObjectField(objectKey);
+
+                        //set field value to l
+                        field.setValue(l);
+
+                        //add field to top object of object stack
+                        objectStack.peek().addField(field);
+
+                    }
+
+                    //reset expecting key
                     expectingKey = true;
                     break;
-                }case ':':
+                }
+
+                //if character is :
+                case ':':
+
+                    try {
+                        if (!expectingKey) {
+                            throw runtime_error("Caught expected key");
+                        }
+                    }catch (runtime_error& e) {
+                        cout << e.what() << endl;
+                    }
+
+                    //not expecting key
                     expectingKey = false;
+
+                    //clear current string
                     currentString.clear();
                     break;
+
+                //skip commas
                 case ',':
                     break;
+
+                //default should never trigger. Triggering probably means a syntax error
                 default:
                     cout << "Default Triggered. Should not have happened" << endl;
             }
         }
+
+        //move onto next character
         i++;
     }
+
+    //return top object. should be last object
     return objectStack.pop();
 }
 
@@ -465,71 +718,13 @@ ArrayList<JSONObject> vectorRoot(string line){
 }
 
 int main() {
-    string line = readFile("C:/Users/jacks/CLionProjects/videoGame/cmake-build-debug/Resources/sample.json");
+    string line = readFile("/home/jacksonryan/CLionProjects/JSONProject/cmake-build-debug/Resources/data/a.json");
     JSONObject object = objectRoot(line);
 
     cout << object.getName() << " " << object.getFields().size() << endl;
     for (int i = 0; i < object.getFields().size(); i++) {
         cout << object.getFields().get(i).getName() << endl;
     }
-
-    cout << endl;
-
-    JSONObject inner = object.getFields().get(5).getValue<JSONObject>();
-    cout << inner.getName() << " " << inner.getFields().size() << endl;
-    for (int i = 0; i < inner.getFields().size(); i++) {
-        cout << inner.getFields().get(i).getName() << endl;
-    }
-
-    cout << endl;
-
-    List departments = object.getFields().get(6).getValue<List>();
-    cout << object.getFields().get(6).getName() << " " << departments.size() << endl;
-    for (int i = 0; i < departments.size(); i++) {
-        cout << departments.get<string>(i) << endl;
-    }
-
-    cout << endl;
-
-    List employees = object.getFields().get(7).getValue<List>();
-    cout << employees.size() << endl;
-
-    for (int i = 0; i < employees.size(); i++) {
-
-        JSONObject o = employees.get<JSONObject>(i);
-        cout << o.getName() <<  endl;
-
-        int id = o.getField("id").getValue<int>();
-        cout << "id: " << id << endl;
-
-        string name = o.getField("name").getValue<string>();
-        cout << "name: " << name << endl;
-
-        string role = o.getField("role").getValue<string>();
-        cout << "role: " << role << endl;
-
-        int salary = o.getField("salary").getValue<int>();
-        cout << "salary: " << salary << endl;
-
-        bool remote = o.getField("remote").getValue<bool>();
-        cout << "remote: " << remote << endl;
-
-        cout << endl;
-    }
-
-    JSONObject benifits = object.getField("benefits").getValue<JSONObject>();
-    cout << benifits.getName() << endl;
-
-    bool health_insurance = benifits.getField("health_insurance").getValue<bool>();
-    cout << "health_insurance: " << health_insurance << endl;
-    bool dental = benifits.getField("dental").getValue<bool>();
-    cout << "dental: " << dental << endl;
-    string retirement_plan = benifits.getField("retirement_plan").getValue<string>();
-    cout << "retirement_plan: " << retirement_plan << endl;
-    int pto_days = benifits.getField("pto_days").getValue<int>();
-    cout << "pto_days: " << pto_days << endl;
-    int parental_leave_weeks = benifits.getField("parental_leave_weeks").getValue<int>();
-    cout << "parental_leave_weeks: " << parental_leave_weeks << endl;
 
     return 0;
 }

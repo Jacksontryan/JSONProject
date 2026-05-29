@@ -102,6 +102,46 @@ public:
         length = 0;
     }
 
+    bool checkSame() const{
+
+        if (this->length <= 1) return true;
+        const type_info& info = array[0].type();
+        for (int i = 0; i < length; i++) {
+            if (array[i].type() != info) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    template <class T>
+    bool allSameType() const {
+        if (this->length <= 1) return true;
+        for (int i = 0; i < length; i++) {
+            if (array[i].type() != typeid(T)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    const type_info& getCommonType() const {
+        if (this->length <= 1) return array[0].type();
+        return typeid(bool);
+    }
+
+    template <class T>
+    ArrayList<T> toArrayList() const {
+        ArrayList<T> list;
+        if (!allSameType<T>()) {
+            return list;
+        }
+        for (int i = 0; i < length; i++) {
+            list.add(i, std::any_cast<T>(array[i]));
+        }
+        return list;
+    }
+
 
 };
 
